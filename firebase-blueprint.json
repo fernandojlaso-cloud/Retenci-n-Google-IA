@@ -1,0 +1,194 @@
+{
+  "entities": {
+    "Manager": {
+      "title": "Manager",
+      "description": "Branch manager or system administrator profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "nombre": { "type": "string", "maxLength": 100 },
+        "apellido": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "sede": { "type": "string", "maxLength": 100 },
+        "rol": { "type": "string", "enum": ["gerente", "director", "supervisor"] },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["nombre", "apellido", "sede", "rol"]
+    },
+    "Sleeper": {
+      "title": "Sleeper",
+      "description": "Inactive member paying membership but not attending",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "dni": { "type": "string", "maxLength": 30 },
+        "nombre": { "type": "string", "maxLength": 150 },
+        "telefono": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "sede": { "type": "string", "maxLength": 100 },
+        "dias_sin_asistir": { "type": "number" },
+        "ultimo_acceso": { "type": "string", "maxLength": 50 },
+        "estado": { "type": "string", "enum": ["Abierto", "Gestionado", "Cerrado"] },
+        "riesgo": { "type": "string", "enum": ["Alto", "Medio", "Bajo"] },
+        "motivo": { "type": "string", "maxLength": 100 },
+        "intencion_volver": { "type": "string", "maxLength": 50 },
+        "fecha_envio_mensaje": { "type": "string", "maxLength": 50 },
+        "fecha_seguimiento": { "type": "string", "maxLength": 50 },
+        "resultado_cierre": { "type": "string", "maxLength": 50 },
+        "actividad_favorita": { "type": "string", "maxLength": 100 },
+        "creado_en": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["dni", "nombre", "telefono", "sede", "dias_sin_asistir", "estado", "riesgo"]
+    },
+    "Contrato": {
+      "title": "Contrato",
+      "description": "Expiring contract member crossed with access logs and NPS scores",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "dni": { "type": "string", "maxLength": 30 },
+        "nombre": { "type": "string", "maxLength": 150 },
+        "telefono": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "sede": { "type": "string", "maxLength": 100 },
+        "plan": { "type": "string", "maxLength": 100 },
+        "fecha_fin_contrato": { "type": "string", "maxLength": 50 },
+        "dias_para_vencer": { "type": "number" },
+        "score_salud": { "type": "number" },
+        "frecuencia_semanal_promedio": { "type": "number" },
+        "nps_score": { "type": "number" },
+        "nps_comentario": { "type": "string", "maxLength": 500 },
+        "riesgo_baja": { "type": "string", "enum": ["Alto", "Medio", "Bajo"] },
+        "estado": { "type": "string", "enum": ["Abierto", "Seguimiento", "Cerrado"] },
+        "resultado_gestion": { "type": "string", "maxLength": 50 },
+        "fecha_ultimo_contacto": { "type": "string", "maxLength": 50 },
+        "notas": { "type": "string", "maxLength": 1000 }
+      },
+      "required": ["dni", "nombre", "telefono", "sede", "plan", "fecha_fin_contrato", "dias_para_vencer", "score_salud", "estado"]
+    },
+    "OnboardingMember": {
+      "title": "OnboardingMember",
+      "description": "New member in the 30-day onboarding journey with milestones and branch segmentation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "dni": { "type": "string", "maxLength": 30 },
+        "nombre": { "type": "string", "maxLength": 150 },
+        "telefono": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "sede": { "type": "string", "maxLength": 100 },
+        "fecha_alta": { "type": "string", "maxLength": 50 },
+        "dias_desde_alta": { "type": "number" },
+        "rama": { "type": "string", "enum": ["Musculación", "Clases de Técnicas", "Pileta", "Outdoor", "Sin clasificar"] },
+        "hito_actual": { "type": "string", "enum": ["Hito 1", "Hito 2", "Hito 3", "Hito 4", "Completado"] },
+        "hito1_completado": { "type": "boolean" },
+        "hito1_fecha": { "type": "string", "maxLength": 50 },
+        "hito1_respuesta": { "type": "string", "maxLength": 500 },
+        "hito2_completado": { "type": "boolean" },
+        "hito2_fecha": { "type": "string", "maxLength": 50 },
+        "hito2_feedback": { "type": "string", "maxLength": 500 },
+        "hito2_satisfaccion": { "type": "string", "maxLength": 50 },
+        "hito3_completado": { "type": "boolean" },
+        "hito3_fecha": { "type": "string", "maxLength": 50 },
+        "hito3_progreso": { "type": "string", "maxLength": 500 },
+        "hito3_frecuencia_ok": { "type": "boolean" },
+        "hito4_completado": { "type": "boolean" },
+        "hito4_fecha": { "type": "string", "maxLength": 50 },
+        "hito4_asistencia_real": { "type": "number" },
+        "hito4_status": { "type": "string", "enum": ["Positivo", "Alerta Roja", "En evaluación"] },
+        "alerta_roja": { "type": "boolean" },
+        "alerta_motivo": { "type": "string", "maxLength": 500 },
+        "tarea_urgente_asignada": { "type": "boolean" },
+        "tarea_resuelta": { "type": "boolean" },
+        "ultimo_contacto": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["dni", "nombre", "telefono", "sede", "fecha_alta", "dias_desde_alta", "rama", "hito_actual"]
+    },
+    "Interaction": {
+      "title": "Interaction",
+      "description": "Communication log recorded when manager contacts a member via WhatsApp, Email, or Call",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "socio_dni": { "type": "string", "maxLength": 30 },
+        "socio_nombre": { "type": "string", "maxLength": 150 },
+        "canal": { "type": "string", "enum": ["whatsapp", "email", "llamada", "presencial"] },
+        "modulo": { "type": "string", "enum": ["onboarding", "sleepers", "contratos", "gift"] },
+        "hito": { "type": "string", "maxLength": 50 },
+        "mensaje": { "type": "string", "maxLength": 2000 },
+        "gerente_nombre": { "type": "string", "maxLength": 150 },
+        "sede": { "type": "string", "maxLength": 100 },
+        "fecha": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["socio_dni", "socio_nombre", "canal", "modulo", "gerente_nombre", "sede", "fecha"]
+    },
+    "TeamMember": {
+      "title": "TeamMember",
+      "description": "Collaborator or branch manager with two-level hierarchical approvals and permissions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "nombre": { "type": "string", "maxLength": 100 },
+        "apellido": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "telefono": { "type": "string", "maxLength": 50 },
+        "sede": { "type": "string", "maxLength": 100 },
+        "rol": { "type": "string", "enum": ["director", "gerente", "supervisor", "coordinador"] },
+        "cargoEspecifico": { "type": "string", "maxLength": 150 },
+        "aprobadoPorDirector": { "type": "boolean" },
+        "fechaAprobacionDirector": { "type": "string", "maxLength": 50 },
+        "autorizadoPorGerente": { "type": "boolean" },
+        "fechaAutorizacionGerente": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["nombre", "apellido", "email", "sede", "rol", "cargoEspecifico"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable security and operational event log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "fecha": { "type": "string", "maxLength": 50 },
+        "usuarioNombre": { "type": "string", "maxLength": 150 },
+        "usuarioRol": { "type": "string", "maxLength": 50 },
+        "usuarioEmail": { "type": "string", "maxLength": 150 },
+        "accion": { "type": "string", "maxLength": 200 },
+        "categoria": { "type": "string", "maxLength": 50 },
+        "detalles": { "type": "string", "maxLength": 1000 },
+        "sede": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["fecha", "usuarioNombre", "usuarioRol", "accion", "categoria", "detalles"]
+    }
+  },
+  "firestore": {
+    "/managers/{managerId}": {
+      "schema": "Manager",
+      "description": "Collection of manager and supervisor user profiles"
+    },
+    "/team/{memberId}": {
+      "schema": "TeamMember",
+      "description": "Collection of branch team members and managers with permissions"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Collection of immutable audit action records"
+    },
+    "/sleepers/{sleeperId}": {
+      "schema": "Sleeper",
+      "description": "Collection of inactive sleeper members"
+    },
+    "/contratos/{contratoId}": {
+      "schema": "Contrato",
+      "description": "Collection of expiring contracts with health and churn risk"
+    },
+    "/onboardings/{onboardingId}": {
+      "schema": "OnboardingMember",
+      "description": "Collection of new members tracking their 30-day onboarding journey"
+    },
+    "/interactions/{interactionId}": {
+      "schema": "Interaction",
+      "description": "Collection of logged contact actions by branch managers"
+    }
+  }
+}

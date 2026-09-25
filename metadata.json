@@ -1,0 +1,6 @@
+{
+  "name": "Megatlon Sleeper & Visual Analytics",
+  "description": "Sistema avanzado de gestión y reactivación de socios sleepers, contratos y pases gift para Megatlon con visualización de datos interactiva y estudio de generación de imágenes motivacionales con IA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

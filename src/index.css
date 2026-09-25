@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', 'Montserrat', system-ui, -apple-system, sans-serif;
+    background-color: #0b0c10;
+    color: #ffffff;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-heading, .font-brand {
+    font-family: 'Montserrat', 'Barlow', 'Outfit', sans-serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Megatlon official athletic styling - Orange Edition */
+:root {
+  --megatlon-orange: #ff6b00;
+  --megatlon-orange-hover: #ff8533;
+  --megatlon-orange-dark: #ea580c;
+  --megatlon-dark: #0b0c10;
+  --megatlon-card: #14151b;
+  --megatlon-surface: #1b1c24;
+  --megatlon-border: #262734;
+}
+
+/* Megatlon athletic typography utility */
+.font-megatlon {
+  font-family: 'Montserrat', 'Barlow', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+/* Custom modern dark athletic scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f1015;
+}
+::-webkit-scrollbar-thumb {
+  background: #232530;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ff6b00;
+}
+
+/* Athletic pulse effects */
+@keyframes megatlonGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(255, 107, 0, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 107, 0, 0.5);
+  }
+}
+
+.megatlon-glow {
+  animation: megatlonGlow 3s ease-in-out infinite;
+}
+

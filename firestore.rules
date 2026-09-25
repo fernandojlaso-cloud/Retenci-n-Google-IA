@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Branch Managers collection
+    match /managers/{managerId} {
+      allow read, write: if isValidId(managerId);
+    }
+
+    // Team members & permissions collection
+    match /team/{memberId} {
+      allow read, write: if isValidId(memberId);
+    }
+
+    // Audit logs collection
+    match /audit_logs/{logId} {
+      allow read, write: if isValidId(logId);
+    }
+
+    // Sleepers collection
+    match /sleepers/{sleeperId} {
+      allow read, write: if isValidId(sleeperId);
+    }
+
+    // Contratos collection
+    match /contratos/{contratoId} {
+      allow read, write: if isValidId(contratoId);
+    }
+
+    // Onboarding 30-day journey collection
+    match /onboardings/{onboardingId} {
+      allow read, write: if isValidId(onboardingId);
+    }
+
+    // Interactions communication log
+    match /interactions/{interactionId} {
+      allow read, write: if isValidId(interactionId);
+    }
+
+    // Connection test document
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}
