@@ -16,12 +16,15 @@ export interface MiembroEquipo {
   nombre: string;
   apellido: string;
   email: string;
+  password?: string;
   telefono?: string;
   sede: string;
   rol: RolUsuario;
   cargoEspecifico: string; // ej: "Gerente de Sede", "Coordinador de Fitness & Musculación", "Supervisor de Front Desk", "Coordinador Clases de Técnicas"
   avatar?: string;
   fechaIngreso: string;
+  ultimoAcceso?: string;
+  estado?: "activo" | "inactivo";
   
   // Nivel 1 de Aprobación Jerárquica: El Director aprueba al Gerente de Sede
   aprobadoPorDirector: boolean;
@@ -39,6 +42,18 @@ export interface MiembroEquipo {
   notasAuditoria?: string;
 }
 
+export interface DatosNuevoMiembro {
+  nombre: string;
+  apellido: string;
+  email: string;
+  password?: string;
+  telefono?: string;
+  sede: string;
+  rol: RolUsuario;
+  cargoEspecifico: string;
+  permisosPersonalizados?: Partial<PermisosUsuario>;
+}
+
 export interface RegistroAuditoria {
   id: string;
   fecha: string;
@@ -46,9 +61,11 @@ export interface RegistroAuditoria {
   usuarioRol: RolUsuario;
   usuarioEmail: string;
   accion: string;
-  categoria: "aprobacion_gerente" | "autorizacion_equipo" | "permisos" | "mensajes_segmento" | "seguridad";
+  categoria: "aprobacion_gerente" | "autorizacion_equipo" | "permisos" | "mensajes_segmento" | "seguridad" | "acceso";
   detalles: string;
   sede?: string;
+  ip?: string;
+  exito?: boolean;
 }
 
 export type CategoriaSegmento = "contratos" | "sleepers" | "onboarding" | "gift";

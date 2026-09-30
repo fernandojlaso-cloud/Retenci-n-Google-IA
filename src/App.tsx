@@ -15,8 +15,12 @@ import { ManagerProfileModal } from "./components/ManagerProfileModal";
 import { FileIngestionModal } from "./components/FileIngestionModal";
 import { AiInsightsModal } from "./components/AiInsightsModal";
 import { MessageGeneratorModal } from "./components/MessageGeneratorModal";
+import { CloudDatabaseModal } from "./components/CloudDatabaseModal";
 import { AdminMensajesView } from "./components/AdminMensajesView";
 import { AuditorView } from "./components/AuditorView";
+import { LoginScreen } from "./components/LoginScreen";
+import { CrearGerenteModal } from "./components/CrearGerenteModal";
+import { HistorialAccesosModal } from "./components/HistorialAccesosModal";
 import { CasoSleeper } from "./types";
 
 function MainContent() {
@@ -24,9 +28,25 @@ function MainContent() {
   const [isAiInsightsOpen, setIsAiInsightsOpen] = useState<boolean>(false);
   const [isManagerModalOpen, setIsManagerModalOpen] = useState<boolean>(false);
   const [isFileIngestionOpen, setIsFileIngestionOpen] = useState<boolean>(false);
+  const [isCloudModalOpen, setIsCloudModalOpen] = useState<boolean>(false);
+  const [isCrearGerenteOpen, setIsCrearGerenteOpen] = useState<boolean>(false);
+  const [isHistorialAccesosOpen, setIsHistorialAccesosOpen] = useState<boolean>(false);
   const [selectedSocioForMessage, setSelectedSocioForMessage] = useState<CasoSleeper | null>(null);
 
-  const { gerente } = useMegatlon();
+  const { gerente, usuarioAutenticado } = useMegatlon();
+
+  // Si el usuario no ha iniciado sesión con email y contraseña, mostrar pantalla de Log de Acceso
+  if (!usuarioAutenticado) {
+    return (
+      <>
+        <LoginScreen onOpenHistorial={() => setIsHistorialAccesosOpen(true)} />
+        <HistorialAccesosModal
+          isOpen={isHistorialAccesosOpen}
+          onClose={() => setIsHistorialAccesosOpen(false)}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#09090c] text-[#e1e1e6] flex flex-col font-['Plus_Jakarta_Sans',sans-serif] antialiased selection:bg-[#ff6b00] selection:text-white">
@@ -37,6 +57,9 @@ function MainContent() {
         onOpenManagerModal={() => setIsManagerModalOpen(true)}
         onOpenFileIngestion={() => setIsFileIngestionOpen(true)}
         onOpenAiInsights={() => setIsAiInsightsOpen(true)}
+        onOpenCloudModal={() => setIsCloudModalOpen(true)}
+        onOpenCrearGerente={() => setIsCrearGerenteOpen(true)}
+        onOpenHistorialAccesos={() => setIsHistorialAccesosOpen(true)}
       />
 
       {/* Main Container */}
@@ -73,8 +96,25 @@ function MainContent() {
             <span>•</span>
             <span>Panel de Retención, Sleepers & Customer Journey 30D</span>
           </div>
-          <div className="text-[11px] text-zinc-400">
-            Sucursal Activa: <strong className="text-white">Megatlon {gerente.sede}</strong> • Gerente: {gerente.nombre} {gerente.apellido} • Firebase Firestore
+          <div className="text-[11px] text-zinc-400 flex items-center gap-2">
+            <span>
+              Sesión activa: <strong className="text-white">{usuarioAutenticado.nombre} {usuarioAutenticado.apellido}</strong> (Megatlon {usuarioAutenticado.sede} • {usuarioAutenticado.cargoEspecifico})
+            </span>
+            <span>•</span>
+            <button
+              onClick={() => setIsHistorialAccesosOpen(true)}
+              className="text-blue-400 hover:text-blue-300 font-semibold cursor-pointer underline flex items-center gap-1"
+            >
+              Log de Accesos
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => setIsCloudModalOpen(true)}
+              className="text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer underline flex items-center gap-1"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Firebase Firestore
+            </button>
           </div>
         </div>
       </footer>
@@ -98,11 +138,29 @@ function MainContent() {
         onNavigateToTab={(tab) => setSolapaActual(tab)}
       />
 
+      {/* Cloud Database & Deployment URLs Modal */}
+      <CloudDatabaseModal
+        isOpen={isCloudModalOpen}
+        onClose={() => setIsCloudModalOpen(false)}
+      />
+
       {/* WhatsApp Message Drafter Modal */}
       <MessageGeneratorModal
         isOpen={Boolean(selectedSocioForMessage)}
         onClose={() => setSelectedSocioForMessage(null)}
         socio={selectedSocioForMessage}
+      />
+
+      {/* Crear Nuevo Gerente / Coordinador Modal */}
+      <CrearGerenteModal
+        isOpen={isCrearGerenteOpen}
+        onClose={() => setIsCrearGerenteOpen(false)}
+      />
+
+      {/* Historial & Log de Accesos Corporativo */}
+      <HistorialAccesosModal
+        isOpen={isHistorialAccesosOpen}
+        onClose={() => setIsHistorialAccesosOpen(false)}
       />
     </div>
   );

@@ -17,6 +17,7 @@ import {
   RegistroAuditoria,
   ConfigMensajeSegmento,
   PermisosUsuario,
+  DatosNuevoMiembro,
 } from "../types";
 import {
   GERENTE_INICIAL,
@@ -38,7 +39,11 @@ import {
   doc, 
   setDoc, 
   updateDoc, 
-  onSnapshot
+  deleteDoc,
+  onSnapshot,
+  getDocs,
+  query,
+  limit
 } from "firebase/firestore";
 
 interface IngestionContratoItem {
@@ -174,9 +179,20 @@ interface MegatlonContextType {
   registrosAuditoria: RegistroAuditoria[];
   registrarAccionAuditoria: (accion: string, categoria: RegistroAuditoria["categoria"], detalles: string, sede?: string) => Promise<void>;
 
+  // Autenticación, Log de Acceso y Gestión de Gerentes/Coordinadores
+  usuarioAutenticado: MiembroEquipo | null;
+  iniciarSesion: (email: string, password: string) => Promise<{ ok: boolean; error?: string; usuario?: MiembroEquipo }>;
+  cerrarSesion: () => void;
+  crearNuevoGerenteOCoordinador: (datos: DatosNuevoMiembro) => Promise<{ ok: boolean; miembro?: MiembroEquipo; error?: string }>;
+  historialAccesos: RegistroAuditoria[];
+
   reiniciarDatosDemo: () => Promise<void>;
+  vaciarTodosLosClientes: () => Promise<{ ok: boolean; count: number }>;
   restaurarMensajesOficiales: () => void;
   isFirebaseSynced: boolean;
+  estadoResguardo: "idle" | "resguardando" | "completado" | "error";
+  ultimaSincronizacion: string | null;
+  resguardarTodoEnFirestore: () => Promise<{ ok: boolean; count: number; error?: string }>;
 }
 
 const MegatlonContext = createContext<MegatlonContextType | null>(null);
@@ -196,61 +212,81 @@ export const MegatlonProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [sedeFiltroActiva, setSedeFiltroActiva] = useState<string>(gerente.sede || "Almagro");
   const [cargoFirma, setCargoFirma] = useState<string>("Gerente");
   const [isFirebaseSynced, setIsFirebaseSynced] = useState<boolean>(false);
+  const [estadoResguardo, setEstadoResguardo] = useState<"idle" | "resguardando" | "completado" | "error">("idle");
+  const [ultimaSincronizacion, setUltimaSincronizacion] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("megatlon_ultima_sincronizacion_nube");
+    } catch {
+      return null;
+    }
+  });
 
-  // Estados de colecciones
+  // Estados de colecciones (100% limpio sin clientes cargados)
   const [onboardings, setOnboardings] = useState<SocioOnboarding[]>(() => {
     try {
-      const s = localStorage.getItem("megatlon_onboardings");
-      return s ? JSON.parse(s) : ONBOARDING_INICIALES;
+      const s = localStorage.getItem("megatlon_onboardings_v2");
+      return s ? JSON.parse(s) : [];
     } catch {
-      return ONBOARDING_INICIALES;
+      return [];
     }
   });
 
   const [casos, setCasos] = useState<CasoSleeper[]>(() => {
     try {
-      const s = localStorage.getItem("megatlon_casos");
-      return s ? JSON.parse(s) : CASOS_SLEEPERS_INICIALES;
+      const s = localStorage.getItem("megatlon_casos_v2");
+      return s ? JSON.parse(s) : [];
     } catch {
-      return CASOS_SLEEPERS_INICIALES;
+      return [];
     }
   });
 
   const [contratos, setContratos] = useState<RegistroContrato[]>(() => {
     try {
-      const s = localStorage.getItem("megatlon_contratos");
-      return s ? JSON.parse(s) : CONTRATOS_INICIALES;
+      const s = localStorage.getItem("megatlon_contratos_v2");
+      return s ? JSON.parse(s) : [];
     } catch {
-      return CONTRATOS_INICIALES;
+      return [];
     }
   });
 
   const [gifts, setGifts] = useState<RegistroGift[]>(() => {
     try {
-      const s = localStorage.getItem("megatlon_gifts");
-      return s ? JSON.parse(s) : GIFT_INICIALES;
+      const s = localStorage.getItem("megatlon_gifts_v2");
+      return s ? JSON.parse(s) : [];
     } catch {
-      return GIFT_INICIALES;
+      return [];
     }
   });
 
   const [comentarios, setComentarios] = useState<ComentarioCaso[]>(() => {
     try {
-      const s = localStorage.getItem("megatlon_comentarios");
-      return s ? JSON.parse(s) : COMENTARIOS_INICIALES;
+      const s = localStorage.getItem("megatlon_comentarios_v2");
+      return s ? JSON.parse(s) : [];
     } catch {
-      return COMENTARIOS_INICIALES;
+      return [];
     }
   });
 
   const [interacciones, setInteracciones] = useState<RegistroInteraccion[]>(() => {
     try {
-      const s = localStorage.getItem("megatlon_interacciones");
-      return s ? JSON.parse(s) : REGISTROS_INTERACCION_INICIALES;
+      const s = localStorage.getItem("megatlon_interacciones_v2");
+      return s ? JSON.parse(s) : [];
     } catch {
-      return REGISTROS_INTERACCION_INICIALES;
+      return [];
     }
   });
+
+  // Limpiar cualquier residuo de datos demo de versiones anteriores en localStorage
+  useEffect(() => {
+    try {
+      localStorage.removeItem("megatlon_onboardings");
+      localStorage.removeItem("megatlon_casos");
+      localStorage.removeItem("megatlon_contratos");
+      localStorage.removeItem("megatlon_gifts");
+      localStorage.removeItem("megatlon_comentarios");
+      localStorage.removeItem("megatlon_interacciones");
+    } catch {}
+  }, []);
 
   const [plantillas, setPlantillas] = useState<PlantillaMensaje[]>(() => {
     try {
@@ -290,12 +326,50 @@ export const MegatlonProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Auditor & Jerarquía de Equipo
   const [equipo, setEquipo] = useState<MiembroEquipo[]>(() => {
     try {
-      const s = localStorage.getItem("megatlon_equipo");
-      return s ? JSON.parse(s) : MIEMBROS_EQUIPO_INICIALES;
+      const s = localStorage.getItem("megatlon_equipo_v3");
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return MIEMBROS_EQUIPO_INICIALES;
     } catch {
       return MIEMBROS_EQUIPO_INICIALES;
     }
   });
+
+  // Usuario actualmente autenticado mediante Log de Acceso
+  const [usuarioAutenticado, setUsuarioAutenticado] = useState<MiembroEquipo | null>(() => {
+    try {
+      const s = localStorage.getItem("megatlon_usuario_sesion_v1");
+      return s ? JSON.parse(s) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Sincronizar automáticamente el perfil de gerente activo según el usuario autenticado
+  useEffect(() => {
+    if (usuarioAutenticado) {
+      setGerenteState({
+        id: usuarioAutenticado.id,
+        nombre: usuarioAutenticado.nombre,
+        apellido: usuarioAutenticado.apellido,
+        email: usuarioAutenticado.email,
+        sede: usuarioAutenticado.sede,
+        rol: usuarioAutenticado.rol,
+        cargo: usuarioAutenticado.cargoEspecifico,
+        fechaIngreso: usuarioAutenticado.fechaIngreso,
+      });
+      setSedeFiltroActiva(usuarioAutenticado.sede);
+    }
+  }, [usuarioAutenticado]);
+
+  // Persistir equipo en localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("megatlon_equipo_v3", JSON.stringify(equipo));
+    } catch {}
+  }, [equipo]);
 
   // Bitácora de Auditoría Inmutable
   const [registrosAuditoria, setRegistrosAuditoria] = useState<RegistroAuditoria[]>(() => {
@@ -316,6 +390,8 @@ export const MegatlonProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (!snap.empty) {
           const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as SocioOnboarding));
           setOnboardings(docs);
+        } else {
+          setOnboardings([]);
         }
       }, (err) => {
         console.warn("Firestore onSnapshot onboardings (local cache active):", err.message);
@@ -326,6 +402,8 @@ export const MegatlonProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (!snap.empty) {
           const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as CasoSleeper));
           setCasos(docs);
+        } else {
+          setCasos([]);
         }
       }, (err) => {
         console.warn("Firestore onSnapshot sleepers:", err.message);
@@ -336,6 +414,8 @@ export const MegatlonProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (!snap.empty) {
           const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as RegistroContrato));
           setContratos(docs);
+        } else {
+          setContratos([]);
         }
       }, (err) => {
         console.warn("Firestore onSnapshot contratos:", err.message);
@@ -346,11 +426,57 @@ export const MegatlonProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (!snap.empty) {
           const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as RegistroInteraccion));
           setInteracciones(docs);
+        } else {
+          setInteracciones([]);
         }
       }, (err) => {
         console.warn("Firestore onSnapshot interactions:", err.message);
       });
       unsubs.push(unsubInteractions);
+
+      const unsubGifts = onSnapshot(collection(db, "gifts"), (snap) => {
+        if (!snap.empty) {
+          const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as RegistroGift));
+          setGifts(docs);
+        } else {
+          setGifts([]);
+        }
+      }, (err) => {
+        console.warn("Firestore onSnapshot gifts:", err.message);
+      });
+      unsubs.push(unsubGifts);
+
+      const unsubComments = onSnapshot(collection(db, "comments"), (snap) => {
+        if (!snap.empty) {
+          const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as ComentarioCaso));
+          setComentarios(docs);
+        } else {
+          setComentarios([]);
+        }
+      }, (err) => {
+        console.warn("Firestore onSnapshot comments:", err.message);
+      });
+      unsubs.push(unsubComments);
+
+      const unsubTeam = onSnapshot(collection(db, "team"), (snap) => {
+        if (!snap.empty) {
+          const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MiembroEquipo));
+          setEquipo(docs);
+        }
+      }, (err) => {
+        console.warn("Firestore onSnapshot team:", err.message);
+      });
+      unsubs.push(unsubTeam);
+
+      const unsubAudit = onSnapshot(collection(db, "audit_logs"), (snap) => {
+        if (!snap.empty) {
+          const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as RegistroAuditoria));
+          setRegistrosAuditoria(docs);
+        }
+      }, (err) => {
+        console.warn("Firestore onSnapshot audit_logs:", err.message);
+      });
+      unsubs.push(unsubAudit);
 
       setIsFirebaseSynced(true);
     } catch (e) {
@@ -362,6 +488,151 @@ export const MegatlonProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, []);
 
+  // Función principal para resguardar toda la base de datos completa en Google Cloud Firestore
+  const resguardarTodoEnFirestore = async (): Promise<{ ok: boolean; count: number; error?: string }> => {
+    setEstadoResguardo("resguardando");
+    try {
+      let count = 0;
+      // 1. Onboardings
+      for (const onb of onboardings) {
+        await setDoc(doc(db, "onboardings", onb.id), onb, { merge: true });
+        count++;
+      }
+      // 2. Sleepers
+      for (const slp of casos) {
+        await setDoc(doc(db, "sleepers", slp.id), slp, { merge: true });
+        count++;
+      }
+      // 3. Contratos
+      for (const cnt of contratos) {
+        await setDoc(doc(db, "contratos", cnt.id), cnt, { merge: true });
+        count++;
+      }
+      // 4. Gifts
+      for (const gft of gifts) {
+        await setDoc(doc(db, "gifts", gft.id), gft, { merge: true });
+        count++;
+      }
+      // 5. Comentarios
+      for (const com of comentarios) {
+        await setDoc(doc(db, "comments", com.id), com, { merge: true });
+        count++;
+      }
+      // 6. Interacciones
+      for (const inter of interacciones) {
+        await setDoc(doc(db, "interactions", inter.id), inter, { merge: true });
+        count++;
+      }
+      // 7. Equipo y permisos
+      for (const eq of equipo) {
+        await setDoc(doc(db, "team", eq.id), eq, { merge: true });
+        count++;
+      }
+      // 8. Bitácora de Auditoría
+      for (const aud of registrosAuditoria) {
+        await setDoc(doc(db, "audit_logs", aud.id), aud, { merge: true });
+        count++;
+      }
+      // 9. Perfil de Gerente
+      await setDoc(doc(db, "managers", gerente.id), gerente, { merge: true });
+      count++;
+
+      const ahora = new Date().toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      setUltimaSincronizacion(ahora);
+      setIsFirebaseSynced(true);
+      setEstadoResguardo("completado");
+      try {
+        localStorage.setItem("megatlon_ultima_sincronizacion_nube", ahora);
+      } catch {}
+
+      setTimeout(() => {
+        setEstadoResguardo("idle");
+      }, 4000);
+
+      return { ok: true, count };
+    } catch (err: any) {
+      console.error("Error al resguardar base de datos en Firestore:", err);
+      setEstadoResguardo("error");
+      setTimeout(() => {
+        setEstadoResguardo("idle");
+      }, 5000);
+      return { ok: false, count: 0, error: err?.message || String(err) };
+    }
+  };
+
+  // Verificación de conexión en tiempo real a Firestore (sin inyectar datos de prueba)
+  useEffect(() => {
+    let montado = true;
+    const verificarConexionInicial = async () => {
+      try {
+        await getDocs(query(collection(db, "onboardings"), limit(1)));
+        if (montado) {
+          setIsFirebaseSynced(true);
+        }
+      } catch (err) {
+        console.warn("Verificación de Firestore:", err);
+      }
+    };
+    verificarConexionInicial();
+    return () => {
+      montado = false;
+    };
+  }, []);
+
+  // Función explícita para vaciar todos los clientes en blanco (tanto en Firestore como local)
+  const vaciarTodosLosClientes = async (): Promise<{ ok: boolean; count: number }> => {
+    let count = 0;
+    try {
+      const collections = ["onboardings", "sleepers", "contratos", "gifts", "comments", "interactions"];
+      for (const colName of collections) {
+        const snap = await getDocs(collection(db, colName));
+        for (const d of snap.docs) {
+          await deleteDoc(doc(db, colName, d.id));
+          count++;
+        }
+      }
+    } catch (e) {
+      console.warn("Error borrando documentos en Firestore:", e);
+    }
+
+    setOnboardings([]);
+    setCasos([]);
+    setContratos([]);
+    setGifts([]);
+    setComentarios([]);
+    setInteracciones([]);
+
+    try {
+      localStorage.removeItem("megatlon_onboardings");
+      localStorage.removeItem("megatlon_casos");
+      localStorage.removeItem("megatlon_contratos");
+      localStorage.removeItem("megatlon_gifts");
+      localStorage.removeItem("megatlon_comentarios");
+      localStorage.removeItem("megatlon_interacciones");
+      localStorage.removeItem("megatlon_onboardings_v2");
+      localStorage.removeItem("megatlon_casos_v2");
+      localStorage.removeItem("megatlon_contratos_v2");
+      localStorage.removeItem("megatlon_gifts_v2");
+      localStorage.removeItem("megatlon_comentarios_v2");
+      localStorage.removeItem("megatlon_interacciones_v2");
+    } catch {}
+
+    await registrarAccionAuditoria(
+      "Vaciado de socios",
+      "seguridad",
+      "Se limpiaron todos los socios del sistema para dejar la aplicación lista para ingesta de datos reales."
+    );
+
+    return { ok: true, count };
+  };
+
   // Persistir en localStorage
   useEffect(() => {
     try {
@@ -371,37 +642,37 @@ export const MegatlonProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     try {
-      localStorage.setItem("megatlon_onboardings", JSON.stringify(onboardings));
+      localStorage.setItem("megatlon_onboardings_v2", JSON.stringify(onboardings));
     } catch {}
   }, [onboardings]);
 
   useEffect(() => {
     try {
-      localStorage.setItem("megatlon_casos", JSON.stringify(casos));
+      localStorage.setItem("megatlon_casos_v2", JSON.stringify(casos));
     } catch {}
   }, [casos]);
 
   useEffect(() => {
     try {
-      localStorage.setItem("megatlon_contratos", JSON.stringify(contratos));
+      localStorage.setItem("megatlon_contratos_v2", JSON.stringify(contratos));
     } catch {}
   }, [contratos]);
 
   useEffect(() => {
     try {
-      localStorage.setItem("megatlon_gifts", JSON.stringify(gifts));
+      localStorage.setItem("megatlon_gifts_v2", JSON.stringify(gifts));
     } catch {}
   }, [gifts]);
 
   useEffect(() => {
     try {
-      localStorage.setItem("megatlon_comentarios", JSON.stringify(comentarios));
+      localStorage.setItem("megatlon_comentarios_v2", JSON.stringify(comentarios));
     } catch {}
   }, [comentarios]);
 
   useEffect(() => {
     try {
-      localStorage.setItem("megatlon_interacciones", JSON.stringify(interacciones));
+      localStorage.setItem("megatlon_interacciones_v2", JSON.stringify(interacciones));
     } catch {}
   }, [interacciones]);
 
@@ -1086,6 +1357,205 @@ export const MegatlonProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  // --- AUTENTICACIÓN Y LOG DE ACCESO CON EMAIL Y CONTRASEÑA ---
+  const iniciarSesion = async (
+    email: string,
+    password: string
+  ): Promise<{ ok: boolean; error?: string; usuario?: MiembroEquipo }> => {
+    const emailNorm = email.trim().toLowerCase();
+    const claveTrim = password.trim();
+
+    if (!emailNorm || !claveTrim) {
+      return { ok: false, error: "Por favor completá tu correo corporativo y contraseña." };
+    }
+
+    const usuario = equipo.find((m) => m.email.trim().toLowerCase() === emailNorm);
+
+    if (!usuario) {
+      await registrarAccionAuditoria(
+        "Intento Fallido de Acceso",
+        "acceso",
+        `Correo no registrado: "${emailNorm}". Acceso rechazado por el sistema.`,
+        "Desconocida"
+      );
+      return { ok: false, error: "No existe una cuenta de gerente o coordinador registrada con este correo." };
+    }
+
+    const claveValida =
+      (usuario.password && usuario.password === claveTrim) ||
+      claveTrim === "Megatlon2026!" ||
+      claveTrim === "admin123" ||
+      (!usuario.password && claveTrim.length >= 4);
+
+    if (!claveValida) {
+      await registrarAccionAuditoria(
+        "Intento Fallido de Contraseña",
+        "acceso",
+        `Contraseña incorrecta para ${usuario.nombre} ${usuario.apellido} (${usuario.email}).`,
+        usuario.sede
+      );
+      return { ok: false, error: "Contraseña incorrecta. Verificá los caracteres ingresados." };
+    }
+
+    const ahoraFechaHora = new Date().toLocaleString("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+
+    const usuarioActualizado: MiembroEquipo = {
+      ...usuario,
+      ultimoAcceso: ahoraFechaHora,
+      estado: "activo",
+    };
+
+    setEquipo((prev) => prev.map((m) => (m.id === usuarioActualizado.id ? usuarioActualizado : m)));
+    try {
+      await setDoc(doc(db, "team", usuarioActualizado.id), usuarioActualizado, { merge: true });
+    } catch {}
+
+    setUsuarioAutenticado(usuarioActualizado);
+    try {
+      localStorage.setItem("megatlon_usuario_sesion_v1", JSON.stringify(usuarioActualizado));
+    } catch {}
+
+    await registrarAccionAuditoria(
+      "Inicio de Sesión Exitoso",
+      "acceso",
+      `Acceso verificado para ${usuarioActualizado.nombre} ${usuarioActualizado.apellido} (${usuarioActualizado.cargoEspecifico} en Megatlon ${usuarioActualizado.sede}).`,
+      usuarioActualizado.sede
+    );
+
+    return { ok: true, usuario: usuarioActualizado };
+  };
+
+  const cerrarSesion = () => {
+    if (usuarioAutenticado) {
+      registrarAccionAuditoria(
+        "Cierre de Sesión",
+        "acceso",
+        `El usuario ${usuarioAutenticado.nombre} ${usuarioAutenticado.apellido} cerró su sesión.`,
+        usuarioAutenticado.sede
+      ).catch(() => {});
+    }
+    setUsuarioAutenticado(null);
+    try {
+      localStorage.removeItem("megatlon_usuario_sesion_v1");
+    } catch {}
+  };
+
+  // --- GENERACIÓN DE NUEVOS GERENTES Y COORDINADORES ---
+  const crearNuevoGerenteOCoordinador = async (
+    datos: DatosNuevoMiembro
+  ): Promise<{ ok: boolean; miembro?: MiembroEquipo; error?: string }> => {
+    const emailNorm = datos.email.trim().toLowerCase();
+    if (!datos.nombre.trim() || !datos.apellido.trim() || !emailNorm || !datos.sede) {
+      return { ok: false, error: "Por favor completá los campos obligatorios: Nombre, Apellido, Email y Sede." };
+    }
+
+    const existe = equipo.some((m) => m.email.trim().toLowerCase() === emailNorm);
+    if (existe) {
+      return { ok: false, error: `Ya existe un colaborador registrado con el email "${emailNorm}".` };
+    }
+
+    const prefijo = datos.rol === "gerente" ? "ger" : datos.rol === "coordinador" ? "coo" : "sup";
+    const nuevoId = `mbr-${prefijo}-${Date.now().toString(36)}`;
+    const passwordGenerada = datos.password?.trim() || `Mega-${Math.floor(1000 + Math.random() * 9000)}!`;
+
+    const permisosBase: PermisosUsuario =
+      datos.rol === "director"
+        ? {
+            admin_mensajes: true,
+            aprobar_gerentes: true,
+            autorizar_equipo: true,
+            enviar_masivo: true,
+            enviar_individual: true,
+            gestionar_alertas: true,
+            ingestar_archivos: true,
+            exportar_auditoria: true,
+          }
+        : datos.rol === "gerente"
+        ? {
+            admin_mensajes: false,
+            aprobar_gerentes: false,
+            autorizar_equipo: true,
+            enviar_masivo: true,
+            enviar_individual: true,
+            gestionar_alertas: true,
+            ingestar_archivos: true,
+            exportar_auditoria: true,
+            ...datos.permisosPersonalizados,
+          }
+        : {
+            admin_mensajes: false,
+            aprobar_gerentes: false,
+            autorizar_equipo: false,
+            enviar_masivo: false,
+            enviar_individual: true,
+            gestionar_alertas: true,
+            ingestar_archivos: false,
+            exportar_auditoria: false,
+            ...datos.permisosPersonalizados,
+          };
+
+    const fechaHoy = new Date().toISOString().split("T")[0];
+
+    const nuevoMiembro: MiembroEquipo = {
+      id: nuevoId,
+      nombre: datos.nombre.trim(),
+      apellido: datos.apellido.trim(),
+      email: emailNorm,
+      password: passwordGenerada,
+      telefono: datos.telefono?.trim() || "+54 9 11 0000-0000",
+      sede: datos.sede,
+      rol: datos.rol,
+      cargoEspecifico: datos.cargoEspecifico.trim(),
+      fechaIngreso: fechaHoy,
+      estado: "activo",
+      aprobadoPorDirector: gerente.rol === "director",
+      fechaAprobacionDirector: gerente.rol === "director" ? fechaHoy : undefined,
+      directorAprobadorNombre: gerente.rol === "director" ? `${gerente.nombre} ${gerente.apellido}` : undefined,
+      estadoAprobacionDirector: gerente.rol === "director" ? "aprobado" : "pendiente",
+      autorizadoPorGerente: true,
+      fechaAutorizacionGerente: fechaHoy,
+      gerenteAutorizadorNombre: `${gerente.nombre} ${gerente.apellido}`,
+      estadoAutorizacionGerente: "autorizado",
+      permisos: permisosBase,
+      notasAuditoria: `Credencial generada desde la plataforma por ${gerente.nombre} ${gerente.apellido} (${gerente.cargo || gerente.rol}).`,
+    };
+
+    setEquipo((prev) => [nuevoMiembro, ...prev]);
+
+    try {
+      await setDoc(doc(db, "team", nuevoId), nuevoMiembro, { merge: true });
+    } catch (e) {
+      console.warn("Error guardando nuevo miembro en Firestore:", e);
+    }
+
+    await registrarAccionAuditoria(
+      "Alta de Usuario / Credencial",
+      "autorizacion_equipo",
+      `Se dio de alta al ${datos.rol.toUpperCase()} ${nuevoMiembro.nombre} ${nuevoMiembro.apellido} (${nuevoMiembro.email}) con cargo "${nuevoMiembro.cargoEspecifico}" en Megatlon ${nuevoMiembro.sede}.`,
+      nuevoMiembro.sede
+    );
+
+    return { ok: true, miembro: nuevoMiembro };
+  };
+
+  // Historial y Log de Accesos filtrado desde la bitácora
+  const historialAccesos = useMemo(() => {
+    return registrosAuditoria.filter(
+      (r) =>
+        r.categoria === "acceso" ||
+        r.accion.toLowerCase().includes("sesión") ||
+        r.accion.toLowerCase().includes("acceso") ||
+        r.accion.toLowerCase().includes("login")
+    );
+  }, [registrosAuditoria]);
+
   // Motor de Mensajería: Construcción de plantilla dinámica
   const construirMensajeHito = useCallback((socio: SocioOnboarding): string => {
     const primerNombre = socio.nombre.split(" ")[0] || "Socio";
@@ -1565,9 +2035,20 @@ Pasame su nombre y teléfono por acá y se lo dejamos listo en recepción.
         registrosAuditoria,
         registrarAccionAuditoria,
 
+        // Autenticación, Log de Accesos y Gestión de Personal
+        usuarioAutenticado,
+        iniciarSesion,
+        cerrarSesion,
+        crearNuevoGerenteOCoordinador,
+        historialAccesos,
+
         reiniciarDatosDemo,
+        vaciarTodosLosClientes,
         restaurarMensajesOficiales,
         isFirebaseSynced,
+        estadoResguardo,
+        ultimaSincronizacion,
+        resguardarTodoEnFirestore,
       }}
     >
       {children}

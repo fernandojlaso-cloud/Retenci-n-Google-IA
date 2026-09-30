@@ -7,10 +7,6 @@ service cloud.firestore {
       return id is string && id.size() > 0 && id.size() <= 128;
     }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
     // Default deny
     match /{document=**} {
       allow read, write: if false;
@@ -18,37 +14,67 @@ service cloud.firestore {
 
     // Branch Managers collection
     match /managers/{managerId} {
-      allow read, write: if isValidId(managerId);
+      allow get, delete, create, update: if isValidId(managerId);
+      allow list: if true;
     }
 
     // Team members & permissions collection
     match /team/{memberId} {
-      allow read, write: if isValidId(memberId);
+      allow get, delete, create, update: if isValidId(memberId);
+      allow list: if true;
     }
 
     // Audit logs collection
     match /audit_logs/{logId} {
-      allow read, write: if isValidId(logId);
+      allow get, delete, create, update: if isValidId(logId);
+      allow list: if true;
     }
 
     // Sleepers collection
     match /sleepers/{sleeperId} {
-      allow read, write: if isValidId(sleeperId);
+      allow get, delete, create, update: if isValidId(sleeperId);
+      allow list: if true;
     }
 
     // Contratos collection
     match /contratos/{contratoId} {
-      allow read, write: if isValidId(contratoId);
+      allow get, delete, create, update: if isValidId(contratoId);
+      allow list: if true;
     }
 
     // Onboarding 30-day journey collection
     match /onboardings/{onboardingId} {
-      allow read, write: if isValidId(onboardingId);
+      allow get, delete, create, update: if isValidId(onboardingId);
+      allow list: if true;
     }
 
     // Interactions communication log
     match /interactions/{interactionId} {
-      allow read, write: if isValidId(interactionId);
+      allow get, delete, create, update: if isValidId(interactionId);
+      allow list: if true;
+    }
+
+    // Client and case comments
+    match /comments/{commentId} {
+      allow get, delete, create, update: if isValidId(commentId);
+      allow list: if true;
+    }
+
+    // Gift cards and guest passes
+    match /gifts/{giftId} {
+      allow get, delete, create, update: if isValidId(giftId);
+      allow list: if true;
+    }
+
+    // Templates and configuration
+    match /plantillas/{plantillaId} {
+      allow get, delete, create, update: if isValidId(plantillaId);
+      allow list: if true;
+    }
+
+    match /config_mensajes/{configId} {
+      allow get, delete, create, update: if isValidId(configId);
+      allow list: if true;
     }
 
     // Connection test document

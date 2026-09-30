@@ -17,6 +17,11 @@ import {
   MessageSquareText,
   Shield,
   Lock,
+  Database,
+  UserPlus,
+  LogOut,
+  History,
+  KeyRound,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -25,6 +30,9 @@ interface NavbarProps {
   onOpenManagerModal: () => void;
   onOpenFileIngestion: () => void;
   onOpenAiInsights: () => void;
+  onOpenCloudModal: () => void;
+  onOpenCrearGerente: () => void;
+  onOpenHistorialAccesos: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -33,6 +41,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenManagerModal,
   onOpenFileIngestion,
   onOpenAiInsights,
+  onOpenCloudModal,
+  onOpenCrearGerente,
+  onOpenHistorialAccesos,
 }) => {
   const {
     gerente,
@@ -45,6 +56,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     contratosFiltrados,
     equipo,
     isFirebaseSynced,
+    usuarioAutenticado,
+    cerrarSesion,
   } = useMegatlon();
 
   const alertasRojasCount = onboardingsFiltrados.filter((o) => o.alerta_roja && !o.tarea_resuelta).length;
@@ -80,25 +93,36 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Center / Right: Manager Badge & Quick Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Firestore Sync Badge */}
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/5 text-[11px] text-[#8e8e93]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Firebase Firestore Activo</span>
-          </div>
-
-          {/* Branch & Manager Trigger Button */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Firestore Sync Badge & Trigger Modal */}
           <button
-            onClick={onOpenManagerModal}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#16161d] hover:bg-[#1f1f28] border border-white/10 text-white text-xs font-semibold transition-all cursor-pointer shadow-sm"
+            onClick={onOpenCloudModal}
+            title="Base de datos en la nube y enlaces de publicación"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-[11px] text-emerald-300 font-semibold transition-all cursor-pointer shadow-sm"
           >
-            <Building2 className="w-3.5 h-3.5 text-[#ff6b00]" />
-            <span>
-              Sede: <strong className="text-white">{gerente.sede}</strong>
-            </span>
-            <span className="text-[#8e8e93] text-[11px]">
-              ({gerente.nombre} {gerente.apellido})
-            </span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <Database className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden xl:inline">BD Conectada</span>
+          </button>
+
+          {/* Log de Accesos Button */}
+          <button
+            onClick={onOpenHistorialAccesos}
+            title="Ver auditoría y log de accesos corporativos"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#16161d] hover:bg-[#1f1f28] border border-white/10 text-zinc-300 hover:text-white text-xs font-semibold transition-all cursor-pointer shadow-sm"
+          >
+            <History className="w-3.5 h-3.5 text-[#ff6b00]" />
+            <span className="hidden sm:inline">Log de Accesos</span>
+          </button>
+
+          {/* Generar Nuevo Gerente / Coordinador Button */}
+          <button
+            onClick={onOpenCrearGerente}
+            title="Generar nueva cuenta de gerente o coordinador con credenciales"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#ff6b00]/20 to-[#ea580c]/20 hover:from-[#ff6b00]/30 hover:to-[#ea580c]/30 border border-[#ff6b00]/40 text-[#ff781a] hover:text-white text-xs font-bold transition-all cursor-pointer shadow-sm"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>+ Nuevo Gerente / Coord.</span>
           </button>
 
           {/* Ingestar Archivos Button */}
@@ -107,7 +131,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/30 text-blue-300 text-xs font-bold transition-all cursor-pointer"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-blue-400" />
-            <span>Ingestar Archivos (CSV)</span>
+            <span className="hidden md:inline">Ingestar CSV</span>
           </button>
 
           {/* Diagnóstico IA Modal */}
@@ -116,8 +140,37 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#ff6b00] to-[#ea580c] hover:brightness-110 text-white text-xs font-bold shadow-md shadow-[#ff6b00]/25 transition-all cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Diagnóstico IA</span>
+            <span className="hidden lg:inline">Diagnóstico IA</span>
           </button>
+
+          {/* Branch & Manager Trigger Button */}
+          <button
+            onClick={onOpenManagerModal}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#16161d] hover:bg-[#1f1f28] border border-white/10 text-white text-xs font-semibold transition-all cursor-pointer shadow-sm"
+          >
+            <Building2 className="w-3.5 h-3.5 text-[#ff6b00]" />
+            <span>
+              <strong className="text-white">Megatlon {gerente.sede}</strong>
+            </span>
+            <span className="text-[#8e8e93] text-[11px] hidden sm:inline">
+              ({gerente.nombre})
+            </span>
+          </button>
+
+          {/* Cerrar Sesión Button */}
+          {usuarioAutenticado && (
+            <button
+              onClick={() => {
+                if (window.confirm("¿Deseas cerrar tu sesión actual?")) {
+                  cerrarSesion();
+                }
+              }}
+              title="Cerrar sesión"
+              className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 transition-colors cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 

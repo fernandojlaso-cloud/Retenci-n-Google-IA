@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useMegatlon } from "../context/MegatlonContext";
 import { MiembroEquipo, PermisosUsuario, SEDES_MEGATLON } from "../types";
+import { CrearGerenteModal } from "./CrearGerenteModal";
 import {
   Shield,
   ShieldCheck,
@@ -40,13 +41,15 @@ export const AuditorView: React.FC = () => {
     agregarMiembroEquipo,
     eliminarMiembroEquipo,
     registrosAuditoria,
-    registrarAccionAuditoria
+    registrarAccionAuditoria,
+    historialAccesos,
   } = useMegatlon();
 
   const esDirector = gerente.rol === "director";
 
   // Pestañas internas del módulo auditor
-  const [solapaAuditor, setSolapaAuditor] = useState<"jerarquia" | "matriz" | "bitacora">("jerarquia");
+  const [solapaAuditor, setSolapaAuditor] = useState<"jerarquia" | "matriz" | "bitacora" | "accesos">("jerarquia");
+  const [isCrearModalOpen, setIsCrearModalOpen] = useState<boolean>(false);
 
   // Filtros
   const [filtroSede, setFiltroSede] = useState<string>("todas");
@@ -361,12 +364,31 @@ export const AuditorView: React.FC = () => {
             }`}
           >
             <History className="w-4 h-4" />
-            <span>Bitácora de Auditoría Inmutable ({registrosAuditoria.length})</span>
+            <span>Bitácora de Eventos ({registrosAuditoria.length})</span>
+          </button>
+
+          <button
+            onClick={() => setSolapaAuditor("accesos")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              solapaAuditor === "accesos"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
+                : "text-[#8e8e93] hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <Lock className="w-4 h-4 text-blue-400" />
+            <span>Log de Accesos ({historialAccesos.length})</span>
           </button>
         </div>
 
-        {/* Filtros Rápidos */}
+        {/* Action Button & Filtros Rápidos */}
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setIsCrearModalOpen(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#ff6b00] to-[#ea580c] hover:brightness-110 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-[#ff6b00]/25 cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>+ Generar Gerente / Coord.</span>
+          </button>
           <div className="relative min-w-[180px]">
             <Search className="w-3.5 h-3.5 text-[#8e8e93] absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -895,6 +917,112 @@ export const AuditorView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Pestaña 4: Log de Accesos y Seguridad */}
+      {solapaAuditor === "accesos" && (
+        <div className="space-y-4 animate-in fade-in">
+          <div className="bg-[#121217] border border-blue-500/20 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white font-['Outfit'] flex items-center gap-2">
+                    <span>Log de Accesos y Autenticación Corporativa</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      Tiempo Real
+                    </span>
+                  </h3>
+                  <p className="text-xs text-[#8e8e93]">
+                    Registro inmutable de cada intento de acceso con email y contraseña, credenciales creadas y sesiones de gerentes
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsCrearModalOpen(true)}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ff6b00] to-[#ea580c] hover:brightness-110 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-[#ff6b00]/25 cursor-pointer self-start sm:self-center"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Generar Nuevo Gerente / Coord.</span>
+              </button>
+            </div>
+
+            <div className="bg-[#16161f] border border-white/5 rounded-2xl overflow-hidden shadow-inner">
+              <div className="overflow-x-auto max-h-[500px]">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="sticky top-0 bg-[#1c1c24] text-[#8e8e93] uppercase font-bold text-[10px] tracking-wider z-10 border-b border-white/10">
+                    <tr>
+                      <th className="py-3 px-4">Fecha y Hora</th>
+                      <th className="py-3 px-3">Colaborador / Usuario</th>
+                      <th className="py-3 px-3">Sede</th>
+                      <th className="py-3 px-3">Estado de Evento</th>
+                      <th className="py-3 px-4">Detalles Registrados</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {historialAccesos.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-zinc-500">
+                          Aún no se han registrado eventos de acceso en esta sesión.
+                        </td>
+                      </tr>
+                    ) : (
+                      historialAccesos.map((log) => {
+                        const esExito = log.accion.toLowerCase().includes("exitoso");
+                        const esFallo = log.accion.toLowerCase().includes("fallido");
+
+                        return (
+                          <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="py-3 px-4 font-mono text-[11px] text-zinc-400 whitespace-nowrap">
+                              {log.fecha}
+                            </td>
+                            <td className="py-3 px-3">
+                              <p className="font-bold text-white text-xs">{log.usuarioNombre}</p>
+                              <p className="text-[10px] text-zinc-500">{log.usuarioEmail}</p>
+                            </td>
+                            <td className="py-3 px-3 text-zinc-300">
+                              <span className="flex items-center gap-1 text-[11px]">
+                                <Building2 className="w-3 h-3 text-[#ff6b00]" />
+                                Megatlon {log.sede || "General"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              {esExito ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                                  <CheckCircle2 className="w-3 h-3" /> Acceso Exitoso
+                                </span>
+                              ) : esFallo ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-bold animate-pulse">
+                                  <AlertTriangle className="w-3 h-3" /> Intento Rechazado
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 text-[10px]">
+                                  {log.accion}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-zinc-400 text-[11px]">
+                              {log.detalles}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Crear Nuevo Gerente o Coordinador */}
+      <CrearGerenteModal
+        isOpen={isCrearModalOpen}
+        onClose={() => setIsCrearModalOpen(false)}
+      />
 
       {/* Modal para Agregar Nuevo Miembro de Equipo */}
       {isModalAltaOpen && (
