@@ -23,7 +23,8 @@ import {
   Search,
   Building2,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Trash2,
 } from "lucide-react";
 
 export const OnboardingJourneyView: React.FC = () => {
@@ -36,6 +37,7 @@ export const OnboardingJourneyView: React.FC = () => {
     agregarSocioOnboarding,
     construirMensajeHito,
     soloMiSede,
+    eliminarSocioOnboarding,
   } = useMegatlon();
 
   // Filtros
@@ -621,6 +623,20 @@ export const OnboardingJourneyView: React.FC = () => {
                           Ficha <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       )}
+
+                      {/* Botón Eliminar Socio */}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (window.confirm(`¿Confirmás la eliminación definitiva de ${socio.nombre} (DNI: ${socio.dni}) del sistema de Onboarding?`)) {
+                            await eliminarSocioOnboarding(socio.id);
+                          }
+                        }}
+                        className="p-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 transition-all cursor-pointer"
+                        title="Eliminar socio de Onboarding"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 </div>

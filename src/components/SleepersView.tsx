@@ -26,7 +26,8 @@ import {
   History,
   Star,
   Check,
-  RotateCcw
+  RotateCcw,
+  Trash2,
 } from "lucide-react";
 
 interface SleepersViewProps {
@@ -57,6 +58,7 @@ export const SleepersView: React.FC<SleepersViewProps> = () => {
     casosFiltrados,
     actualizarCasoSleeper,
     enviarMensajeSleeper,
+    eliminarCasoSleeper,
     gerente,
     soloMiSede,
     comentarios,
@@ -843,6 +845,20 @@ Un abrazo,`;
                           >
                             <Flame className="w-3.5 h-3.5" />
                             <span>{segundoEnviado ? "2° Enviado" : "2° Mensaje"}</span>
+                          </button>
+
+                          {/* Botón Eliminar Socio Sleeper */}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (window.confirm(`¿Confirmás la eliminación definitiva de ${c.nombre} (DNI: ${c.dni}) del sistema de Sleepers?`)) {
+                                await eliminarCasoSleeper(c.id);
+                              }
+                            }}
+                            className="p-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 transition-all cursor-pointer"
+                            title="Eliminar socio de Sleepers"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>

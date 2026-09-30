@@ -26,7 +26,8 @@ import {
   CheckCircle2,
   Check,
   RotateCcw,
-  X
+  X,
+  Trash2,
 } from "lucide-react";
 
 export interface InfoCasoContrato {
@@ -181,6 +182,7 @@ export const ContratosView: React.FC = () => {
   const {
     contratosFiltrados,
     actualizarContrato,
+    eliminarContrato,
     gerente,
     soloMiSede,
     comentarios,
@@ -1167,15 +1169,32 @@ Soy ${gerente.nombre} ${gerente.apellido}, ${gerente.sede} y te veo entrenando s
                         </button>
                       </td>
 
-                      {/* Botón WhatsApp */}
+                      {/* Botones Acciones: WhatsApp y Eliminar */}
                       <td className="py-3.5 px-4 text-right">
-                        <button
-                          onClick={() => setSocioMensaje(c)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-bold text-xs transition-colors cursor-pointer"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                          <span>WhatsApp</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSocioMensaje(c)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-bold text-xs transition-colors cursor-pointer"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>WhatsApp</span>
+                          </button>
+
+                          {/* Botón Eliminar Contrato */}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (window.confirm(`¿Confirmás la eliminación definitiva del contrato de ${c.nombre} (DNI: ${c.dni})?`)) {
+                                await eliminarContrato(c.id);
+                              }
+                            }}
+                            className="p-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 transition-all cursor-pointer"
+                            title="Eliminar registro de contrato"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

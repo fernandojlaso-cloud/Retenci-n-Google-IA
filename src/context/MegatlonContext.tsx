@@ -123,6 +123,14 @@ interface MegatlonContextType {
   actualizarPlantilla: (id: string, campos: Partial<PlantillaMensaje>) => Promise<void>;
   agregarFlyer: (flyer: FlyerCreative) => void;
 
+  // Eliminación de Clientes y Bajas del Sistema
+  eliminarSocioOnboarding: (id: string) => Promise<boolean>;
+  eliminarCasoSleeper: (id: string) => Promise<boolean>;
+  eliminarContrato: (id: string) => Promise<boolean>;
+  eliminarGift: (id: string) => Promise<boolean>;
+  eliminarClienteGeneral: (id: string, modulo: "onboarding" | "sleepers" | "contratos" | "gift") => Promise<boolean>;
+  eliminarClientesLote: (items: Array<{ id: string; modulo: "onboarding" | "sleepers" | "contratos" | "gift" }>) => Promise<{ exitosos: number; fallidos: number }>;
+
   // Generador dinámico de mensajería (WhatsApp Click-to-Chat & Email)
   construirMensajeHito: (socio: SocioOnboarding) => string;
   registrarInteraccion: (
@@ -994,6 +1002,122 @@ export const MegatlonProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setGifts((prev) =>
       prev.map((g) => (g.id === id ? { ...g, ...campos } : g))
     );
+  };
+
+  // --- ELIMINACIÓN DE CLIENTES (INDIVIDUAL Y POR LOTE) ---
+  const eliminarSocioOnboarding = async (id: string): Promise<boolean> => {
+    const socio = onboardings.find((s) => s.id === id);
+    setOnboardings((prev) => prev.filter((s) => s.id !== id));
+    try {
+      await deleteDoc(doc(db, "onboardings", id));
+    } catch (e) {
+      console.warn("Error borrando onboarding en Firestore:", e);
+    }
+    if (socio) {
+      await registrarAccionAuditoria(
+        "Baja de Socio Onboarding",
+        "seguridad",
+        `Se eliminó al socio de Onboarding 30D: ${socio.nombre} (DNI: ${socio.dni}) en Megatlon ${socio.sede}.`,
+        socio.sede
+      );
+    }
+    return true;
+  };
+
+  const eliminarCasoSleeper = async (id: string): Promise<boolean> => {
+    const caso = casos.find((c) => c.id === id);
+    setCasos((prev) => prev.filter((c) => c.id !== id));
+    try {
+      await deleteDoc(doc(db, "sleepers", id));
+    } catch (e) {
+      console.warn("Error borrando sleeper en Firestore:", e);
+    }
+    if (caso) {
+      await registrarAccionAuditoria(
+        "Baja de Socio Sleeper",
+        "seguridad",
+        `Se eliminó al socio Sleeper/Inactivo: ${caso.nombre} (DNI: ${caso.dni}) en Megatlon ${caso.sede}.`,
+        caso.sede
+      );
+    }
+    return true;
+  };
+
+  const eliminarContrato = async (id: string): Promise<boolean> => {
+    const contrato = contratos.find((c) => c.id === id);
+    setContratos((prev) => prev.filter((c) => c.id !== id));
+    try {
+      await deleteDoc(doc(db, "contratos", id));
+    } catch (e) {
+      console.warn("Error borrando contrato en Firestore:", e);
+    }
+    if (contrato) {
+      await registrarAccionAuditoria(
+        "Baja de Contrato",
+        "seguridad",
+        `Se eliminó el contrato a vencer del socio: ${contrato.nombre} (DNI: ${contrato.dni}) en Megatlon ${contrato.sede}.`,
+        contrato.sede
+      );
+    }
+    return true;
+  };
+
+  const eliminarGift = async (id: string): Promise<boolean> => {
+    const gift = gifts.find((g) => g.id === id);
+    setGifts((prev) => prev.filter((g) => g.id !== id));
+    try {
+      await deleteDoc(doc(db, "gifts", id));
+    } catch (e) {
+      console.warn("Error borrando gift en Firestore:", e);
+    }
+    if (gift) {
+      await registrarAccionAuditoria(
+        "Baja de Pase Gift",
+        "seguridad",
+        `Se eliminó el pase gift: ${gift.nombre} en Megatlon ${gift.sede}.`,
+        gift.sede
+      );
+    }
+    return true;
+  };
+
+  const eliminarClienteGeneral = async (
+    id: string,
+    modulo: "onboarding" | "sleepers" | "contratos" | "gift"
+  ): Promise<boolean> => {
+    if (modulo === "onboarding") return eliminarSocioOnboarding(id);
+    if (modulo === "sleepers") return eliminarCasoSleeper(id);
+    if (modulo === "contratos") return eliminarContrato(id);
+    if (modulo === "gift") return eliminarGift(id);
+    return false;
+  };
+
+  const eliminarClientesLote = async (
+    items: Array<{ id: string; modulo: "onboarding" | "sleepers" | "contratos" | "gift" }>
+  ): Promise<{ exitosos: number; fallidos: number }> => {
+    let exitosos = 0;
+    let fallidos = 0;
+
+    for (const item of items) {
+      try {
+        const ok = await eliminarClienteGeneral(item.id, item.modulo);
+        if (ok) exitosos++;
+        else fallidos++;
+      } catch {
+        fallidos++;
+      }
+    }
+
+    if (exitosos > 0) {
+      await registrarAccionAuditoria(
+        "Baja Masiva de Clientes",
+        "seguridad",
+        `Se eliminaron ${exitosos} registros de clientes desde el Administrador de Clientes.`,
+        gerente.sede
+      );
+    }
+
+    return { exitosos, fallidos };
   };
 
   const agregarComentario = (casoId: string, texto: string) => {
@@ -2010,6 +2134,14 @@ Pasame su nombre y teléfono por acá y se lo dejamos listo en recepción.
         actualizarNpsSocio,
         actualizarPlantilla,
         agregarFlyer,
+
+        // Eliminación de Clientes y Bajas
+        eliminarSocioOnboarding,
+        eliminarCasoSleeper,
+        eliminarContrato,
+        eliminarGift,
+        eliminarClienteGeneral,
+        eliminarClientesLote,
 
         construirMensajeHito,
         registrarInteraccion,

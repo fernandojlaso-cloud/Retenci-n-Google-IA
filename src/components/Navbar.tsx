@@ -22,6 +22,7 @@ import {
   LogOut,
   History,
   KeyRound,
+  UserX,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -54,12 +55,17 @@ export const Navbar: React.FC<NavbarProps> = ({
     onboardingsFiltrados,
     casosFiltrados,
     contratosFiltrados,
+    onboardings,
+    casos,
+    contratos,
+    gifts,
     equipo,
     isFirebaseSynced,
     usuarioAutenticado,
     cerrarSesion,
   } = useMegatlon();
 
+  const totalClientes = onboardings.length + casos.length + contratos.length + gifts.length;
   const alertasRojasCount = onboardingsFiltrados.filter((o) => o.alerta_roja && !o.tarea_resuelta).length;
   const sleepersAbiertosCount = casosFiltrados.filter((c) => c.estado === "Abierto").length;
   const contratosRiesgoAltoCount = contratosFiltrados.filter((c) => c.riesgo_baja === "Alto").length;
@@ -236,7 +242,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* 4. Panorama & Analíticas */}
+            {/* 4. Administrador de Clientes & Bajas */}
+            <button
+              onClick={() => setSolapaActual("admin_clientes")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                solapaActual === "admin_clientes"
+                  ? "bg-red-600 text-white shadow-md shadow-red-600/30"
+                  : "text-[#8e8e93] hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <UserX className="w-4 h-4 text-red-400" />
+              <span>Administrador de Clientes</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-white/15 text-white text-[10px]">
+                {totalClientes}
+              </span>
+            </button>
+
+            {/* 5. Panorama & Analíticas */}
             <button
               onClick={() => setSolapaActual("panorama")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${

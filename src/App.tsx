@@ -18,6 +18,7 @@ import { MessageGeneratorModal } from "./components/MessageGeneratorModal";
 import { CloudDatabaseModal } from "./components/CloudDatabaseModal";
 import { AdminMensajesView } from "./components/AdminMensajesView";
 import { AuditorView } from "./components/AuditorView";
+import { AdminClientesView } from "./components/AdminClientesView";
 import { LoginScreen } from "./components/LoginScreen";
 import { CrearGerenteModal } from "./components/CrearGerenteModal";
 import { HistorialAccesosModal } from "./components/HistorialAccesosModal";
@@ -73,6 +74,8 @@ function MainContent() {
         )}
 
         {solapaActual === "contratos" && <ContratosView />}
+
+        {solapaActual === "admin_clientes" && <AdminClientesView />}
 
         {solapaActual === "panorama" && (
           <PanoramaDashboard
